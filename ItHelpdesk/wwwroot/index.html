@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ระบบรับแจ้งปัญหา IT</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1e3a8a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="icon" href="icon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f1f5f9; --card:#fff; --text:#0f172a; --muted:#64748b; --line:#e2e8f0;
+    --brand:#1e3a8a; --brand2:#2563eb; --radius:14px; --shadow:0 1px 2px #0f172a0d,0 4px 16px #0f172a0f;
+    --Open:#64748b; --Assigned:#7c3aed; --InProgress:#d97706; --Resolved:#2563eb; --Closed:#16a34a; --Cancelled:#dc2626;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Noto Sans Thai',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+  button,input,select,textarea{font:inherit;color:inherit}
+
+  /* ---------- Header ---------- */
+  header{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#fff;padding:14px 20px;
+         display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:20;box-shadow:0 2px 12px #1e3a8a40}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:18px}
+  .logo img{width:34px;height:34px;border-radius:9px;background:#fff2}
+  .logo small{display:block;font-weight:400;font-size:12px;opacity:.8}
+  .who{display:flex;align-items:center;gap:8px;background:#ffffff1f;border-radius:999px;padding:4px 6px 4px 12px}
+  .who span{font-size:13px;opacity:.85;white-space:nowrap}
+  .who b{font-size:14px;white-space:nowrap}
+  .who button{background:#fff;color:var(--brand);border:0;border-radius:999px;padding:6px 12px;font-weight:600;cursor:pointer}
+  .role-chip{font-size:11px;background:#ffffff33;border-radius:999px;padding:2px 8px;white-space:nowrap}
+  /* ---------- Login ---------- */
+  #login{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:16px;
+         background:linear-gradient(135deg,#1e3a8a,#2563eb 60%,#60a5fa)}
+  #login.show{display:flex}
+  .login-box{background:#fff;border-radius:20px;box-shadow:0 20px 60px #0004;padding:28px;width:100%;max-width:400px}
+  .login-box .logo{color:var(--brand);justify-content:center;margin-bottom:6px;font-size:22px}
+  .login-box .logo img{background:#eef2ff}
+  .login-box p{text-align:center;color:var(--muted);margin:0 0 16px}
+  .login-err{color:#b91c1c;font-size:13px;min-height:18px;margin-top:8px;text-align:center}
+  .demo{margin-top:18px;border-top:1px dashed var(--line);padding-top:14px}
+  .demo h4{margin:0 0 8px;font-size:13px;color:var(--muted)}
+  .demo button{display:flex;justify-content:space-between;width:100%;border:1px solid var(--line);background:#f8fafc;border-radius:10px;
+               padding:8px 12px;margin-bottom:6px;cursor:pointer;font-size:13px}
+  .demo button:hover{border-color:var(--brand2);background:#eff6ff}
+  .demo code{color:var(--muted)}
+  .cat-row{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+  .cat-row.off span{color:var(--muted);text-decoration:line-through}
+
+  /* ---------- Layout ---------- */
+  .wrap{max-width:1240px;margin:auto;padding:20px}
+  .stats{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin-bottom:18px}
+  .stat{background:var(--card);border-radius:var(--radius);padding:12px 14px;box-shadow:var(--shadow);cursor:pointer;
+        border:2px solid transparent;transition:.15s}
+  .stat:hover{transform:translateY(-2px)}
+  .stat.active{border-color:var(--c)}
+  .stat b{display:block;font-size:24px;color:var(--c)}
+  .stat small{color:var(--muted)}
+  .grid{display:grid;grid-template-columns:380px 1fr;gap:18px;align-items:start}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+  .card h2{font-size:16px;margin:0 0 12px;display:flex;align-items:center;justify-content:space-between}
+
+  /* ---------- Form ---------- */
+  label{display:block;font-size:13px;color:var(--muted);margin:10px 0 4px}
+  input,select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:#fff;outline:none;transition:.15s}
+  input:focus,select:focus,textarea:focus{border-color:var(--brand2);box-shadow:0 0 0 3px #2563eb22}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .prio{display:flex;gap:6px}
+  .prio input{display:none}
+  .prio label{flex:1;margin:0;text-align:center;border:1px solid var(--line);border-radius:10px;padding:8px;cursor:pointer;color:var(--text)}
+  .prio input:checked+label{background:var(--brand);color:#fff;border-color:var(--brand)}
+  .btn{border:0;border-radius:10px;padding:10px 16px;font-weight:600;cursor:pointer;background:var(--brand2);color:#fff;transition:.15s}
+  .btn:hover{filter:brightness(1.08)}
+  .btn:disabled{opacity:.5;cursor:default}
+  .btn.block{width:100%;margin-top:14px}
+  .btn.ghost{background:#eef2ff;color:var(--brand)}
+  .btn.status{background:var(--c);margin:4px 6px 0 0}
+
+  /* ---------- Ticket list ---------- */
+  .tools{display:flex;gap:8px;margin-bottom:12px}
+  .tools input{flex:1}
+  .list{display:flex;flex-direction:column;gap:8px;max-height:calc(100vh - 330px);overflow:auto;padding-right:2px}
+  .ticket{border:1px solid var(--line);border-left:4px solid var(--c);border-radius:12px;padding:12px 14px;cursor:pointer;transition:.15s;background:#fff}
+  .ticket:hover{box-shadow:var(--shadow)}
+  .ticket.sel{background:#eff6ff;border-color:#bfdbfe;border-left-color:var(--c)}
+  .ticket .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .ticket .no{font-size:12px;color:var(--muted);font-weight:600}
+  .ticket .title{font-weight:600;margin:4px 0}
+  .ticket .meta{font-size:12px;color:var(--muted);display:flex;gap:10px;flex-wrap:wrap}
+  .badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;
+         background:color-mix(in srgb,var(--c) 14%,#fff);color:var(--c);white-space:nowrap}
+  .badge::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--c)}
+  .prio-High{color:#dc2626}.prio-Medium{color:#d97706}.prio-Low{color:#16a34a}
+  .empty{text-align:center;color:var(--muted);padding:30px 10px}
+  .empty div{font-size:40px}
+
+  /* ---------- Detail ---------- */
+  .detail-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .detail-head h3{margin:2px 0 0;font-size:20px}
+  .desc{background:#f8fafc;border-radius:10px;padding:12px;margin:14px 0;white-space:pre-wrap}
+  .info{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .info div{background:#f8fafc;border-radius:10px;padding:10px}
+  .info small{display:block;color:var(--muted);font-size:12px}
+  .info b{font-size:14px}
+  .stepper{display:flex;margin:20px 0 6px}
+  .step{flex:1;text-align:center;position:relative;font-size:12px;color:var(--muted)}
+  .step::before{content:"";position:absolute;top:13px;left:-50%;width:100%;height:3px;background:var(--line);z-index:0}
+  .step:first-child::before{display:none}
+  .step i{display:flex;align-items:center;justify-content:center;margin:0 auto 6px;width:28px;height:28px;border-radius:50%;
+          background:#fff;border:3px solid var(--line);position:relative;z-index:1;font-style:normal;font-weight:700;font-size:12px}
+  .step.done i{background:var(--brand2);border-color:var(--brand2);color:#fff}
+  .step.done::before{background:var(--brand2)}
+  .step.now i{box-shadow:0 0 0 5px #2563eb33}
+  .step.now{color:var(--text);font-weight:600}
+  .cancelled-note{background:#fef2f2;color:#b91c1c;border-radius:10px;padding:10px;margin-top:14px;text-align:center;font-weight:600}
+  .actions{border-top:1px dashed var(--line);margin-top:16px;padding-top:14px}
+  .actions h4{margin:0 0 8px;font-size:14px}
+  .inline{display:flex;gap:8px}
+  .inline select{flex:1}
+  .noperm{color:var(--muted);font-size:13px;background:#f8fafc;border-radius:10px;padding:10px}
+  .timeline{list-style:none;margin:8px 0 0;padding:0 0 0 6px}
+  .timeline li{position:relative;padding:0 0 16px 22px;border-left:2px solid var(--line)}
+  .timeline li:last-child{border-left-color:transparent;padding-bottom:0}
+  .timeline li::before{content:"";position:absolute;left:-7px;top:2px;width:12px;height:12px;border-radius:50%;background:var(--c);box-shadow:0 0 0 3px #fff}
+  .timeline .when{font-size:12px;color:var(--muted)}
+  .timeline .note{font-size:13px;background:#f8fafc;border-radius:8px;padding:6px 10px;margin-top:4px;display:inline-block}
+  .placeholder{text-align:center;color:var(--muted);padding:60px 20px}
+  .placeholder div{font-size:52px}
+  .back{display:none}
+
+  /* ---------- Toast ---------- */
+  #toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(100px);background:#0f172a;color:#fff;
+         padding:12px 18px;border-radius:12px;box-shadow:0 8px 24px #0004;transition:.25s;z-index:50;max-width:90vw}
+  #toast.show{transform:translateX(-50%) translateY(0)}
+  #toast.err{background:#b91c1c}
+
+  /* ---------- Mobile ---------- */
+  @media (max-width:900px){
+    .wrap{padding:12px}
+    .grid{grid-template-columns:1fr}
+    .stats{display:flex;overflow-x:auto;gap:8px;padding-bottom:4px;scrollbar-width:none}
+    .stat{flex:0 0 96px}
+    .stat b{font-size:20px}
+    .info{grid-template-columns:1fr 1fr}
+    .list{max-height:none}
+    header{padding:10px 12px}
+    .logo small{display:none}
+    .who span{display:none}
+    input,select,textarea{font-size:16px}
+    #detailPane{position:fixed;inset:0;z-index:30;border-radius:0;overflow:auto;padding:16px 16px 40px;
+                transform:translateX(100%);transition:.25s}
+    #detailPane.open{transform:none}
+    .back{display:inline-flex;margin-bottom:10px}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><img src="icon.svg" alt=""><div>IT Helpdesk<small>ระบบรับแจ้งปัญหาด้าน IT</small></div></div>
+  <div class="who"><span class="role-chip" id="whoRole"></span><b id="whoName"></b><button onclick="logout()">ออกจากระบบ</button></div>
+</header>
+
+<div class="wrap">
+  <div class="stats" id="stats"></div>
+
+  <div class="grid">
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <div class="card">
+        <h2>📝 แจ้งปัญหาใหม่</h2>
+        <label for="title">หัวข้อปัญหา</label>
+        <input id="title" placeholder="เช่น คอมพิวเตอร์เปิดไม่ติด">
+        <label for="desc">รายละเอียด</label>
+        <textarea id="desc" rows="3" placeholder="อธิบายอาการ สถานที่ หรือเบอร์ติดต่อ"></textarea>
+        <label for="category">ประเภทปัญหา</label>
+        <select id="category"></select>
+        <label>ความสำคัญ</label>
+        <div class="prio">
+          <input type="radio" name="prio" id="pL" value="Low"><label for="pL">ต่ำ</label>
+          <input type="radio" name="prio" id="pM" value="Medium" checked><label for="pM">ปานกลาง</label>
+          <input type="radio" name="prio" id="pH" value="High"><label for="pH">สูง</label>
+        </div>
+        <button class="btn block" id="createBtn" onclick="createTicket()">ส่งใบแจ้งปัญหา</button>
+      </div>
+
+      <div class="card" id="catCard" style="display:none">
+        <h2>🗂️ จัดการประเภทปัญหา <small style="color:var(--muted);font-weight:400">Admin</small></h2>
+        <div class="inline"><input id="newCat" placeholder="ชื่อประเภทใหม่"><button class="btn" onclick="addCat()">เพิ่ม</button></div>
+        <div id="catList" style="margin-top:8px"></div>
+      </div>
+
+      <div class="card">
+        <h2>📋 <span id="listTitle">รายการใบแจ้ง</span> <small id="count" style="color:var(--muted);font-weight:400"></small></h2>
+        <div class="tools"><input id="search" placeholder="🔍 ค้นหาเลขที่ / หัวข้อ" oninput="renderList()"></div>
+        <div class="list" id="list"></div>
+      </div>
+    </div>
+
+    <div class="card" id="detailPane">
+      <div class="placeholder"><div>🗂️</div>เลือกใบแจ้งจากรายการเพื่อดูรายละเอียด</div>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<div id="login">
+  <form class="login-box" onsubmit="event.preventDefault(); login()">
+    <div class="logo"><img src="icon.svg" alt=""><div>IT Helpdesk</div></div>
+    <p>เข้าสู่ระบบเพื่อแจ้งและติดตามปัญหา</p>
+    <label for="lu">ชื่อผู้ใช้</label>
+    <input id="lu" autocomplete="username" autocapitalize="none" placeholder="เช่น somchai">
+    <label for="lp">รหัสผ่าน</label>
+    <input id="lp" type="password" autocomplete="current-password" placeholder="รหัสผ่าน">
+    <button class="btn block" id="loginBtn">เข้าสู่ระบบ</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="demo">
+      <h4>บัญชีทดสอบ (กดเพื่อเข้าสู่ระบบทันที)</h4>
+      <button type="button" onclick="quick('somchai','1234')"><span>👤 สมชาย · พนักงาน</span><code>somchai / 1234</code></button>
+      <button type="button" onclick="quick('wichai','1234')"><span>🔧 วิชัย · ช่าง IT</span><code>wichai / 1234</code></button>
+      <button type="button" onclick="quick('admin','admin1234')"><span>🛡️ สุดา · Admin</span><code>admin / admin1234</code></button>
+      <button type="button" onclick="quick('somying','1234')"><span>👤 สมหญิง · พนักงาน</span><code>somying / 1234</code></button>
+      <button type="button" onclick="quick('prasit','1234')"><span>🔧 ประสิทธิ์ · ช่าง IT</span><code>prasit / 1234</code></button>
+    </div>
+  </form>
+</div>
+
+<script>
+const STATUS = {
+  Open:{th:'รอรับเรื่อง'}, Assigned:{th:'มอบหมายแล้ว'}, InProgress:{th:'กำลังดำเนินการ'},
+  Resolved:{th:'แก้ไขเสร็จ'}, Closed:{th:'ปิดงาน'}, Cancelled:{th:'ยกเลิก'}
+};
+const FLOW = ['Open','Assigned','InProgress','Resolved','Closed'];
+const PRIO = {Low:'ต่ำ', Medium:'ปานกลาง', High:'สูง'};
+const ROLE = {Staff:'พนักงาน', Technician:'ช่าง IT', Admin:'ผู้ดูแลระบบ'};
+
+let users = [], tickets = [], cats = [], filter = '', currentId = null, meUser = null;
+const $ = id => document.getElementById(id);
+const me = () => meUser?.id;
+const cvar = s => `--c:var(--${s})`;
+const badge = s => `<span class="badge" style="${cvar(s)}">${STATUS[s].th}</span>`;
+const fmt = d => new Date(d).toLocaleString('th-TH', {dateStyle:'medium', timeStyle:'short'});
+const esc = s => (s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function toast(msg, err) {
+  const t = $('toast'); t.textContent = msg; t.className = 'show' + (err ? ' err' : '');
+  clearTimeout(t._h); t._h = setTimeout(() => t.className = '', 2800);
+}
+
+async function api(url, method = 'GET', body) {
+  const r = await fetch(url, {method, headers:{'Content-Type':'application/json'}, body: body && JSON.stringify(body)});
+  const data = await r.json().catch(() => ({}));
+  if (r.status === 401 && !url.startsWith('/auth/')) { showLogin(); throw new Error('กรุณาเข้าสู่ระบบ'); }
+  if (r.status === 403) throw new Error('ไม่มีสิทธิ์ใช้งานส่วนนี้');
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+function showLogin() { meUser = null; $('login').classList.add('show'); setTimeout(() => $('lu').focus(), 50); }
+
+async function init() {
+  try { meUser = await api('/auth/me'); } catch { return showLogin(); }
+  await start();
+}
+
+async function start() {
+  $('login').classList.remove('show');
+  $('whoName').textContent = meUser.name;
+  $('whoRole').textContent = ROLE[meUser.role];
+  $('listTitle').textContent = {Staff:'ใบแจ้งของฉัน', Technician:'งานที่ได้รับมอบหมาย', Admin:'ใบแจ้งทั้งหมด'}[meUser.role];
+  $('catCard').style.display = meUser.role === 'Admin' ? '' : 'none';
+  currentId = null; filter = '';
+  $('detailPane').innerHTML = '<div class="placeholder"><div>🗂️</div>เลือกใบแจ้งจากรายการเพื่อดูรายละเอียด</div>';
+  users = await api('/users');
+  await loadCats();
+  await loadTickets();
+}
+
+async function login() {
+  $('loginErr').textContent = ''; $('loginBtn').disabled = true;
+  try {
+    meUser = await api('/auth/login', 'POST', {username:$('lu').value, password:$('lp').value});
+    $('lp').value = '';
+    await start(); toast(`ยินดีต้อนรับ ${meUser.name}`);
+  } catch (e) { $('loginErr').textContent = e.message; }
+  $('loginBtn').disabled = false;
+}
+function quick(u, p) { $('lu').value = u; $('lp').value = p; login(); }
+async function logout() { await api('/auth/logout', 'POST').catch(() => {}); tickets = []; showLogin(); }
+
+async function loadCats() {
+  cats = await api('/categories');
+  $('category').innerHTML = cats.filter(c => c.isActive).map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  if (meUser.role === 'Admin')
+    $('catList').innerHTML = cats.map(c => `<div class="cat-row ${c.isActive ? '' : 'off'}"><span>${esc(c.name)}</span>
+      <button class="btn ghost" style="padding:4px 10px" onclick="toggleCat(${c.id})">${c.isActive ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}</button></div>`).join('');
+}
+async function addCat() {
+  try { await api('/categories', 'POST', {name:$('newCat').value.trim()}); $('newCat').value = ''; toast('เพิ่มประเภทแล้ว'); loadCats(); }
+  catch (e) { toast(e.message, true); }
+}
+async function toggleCat(id) { try { await api(`/categories/${id}/toggle`, 'PATCH'); loadCats(); } catch (e) { toast(e.message, true); } }
+
+async function loadTickets() {
+  tickets = await api('/tickets');
+  renderStats(); renderList();
+}
+
+function renderStats() {
+  $('stats').innerHTML = [['', 'ทั้งหมด', '--brand2'], ...Object.keys(STATUS).map(s => [s, STATUS[s].th, '--' + s])]
+    .map(([s, th, c]) => `<div class="stat ${filter === s ? 'active' : ''}" style="--c:var(${c})" onclick="setFilter('${s}')">
+      <b>${s ? tickets.filter(t => t.status === s).length : tickets.length}</b><small>${th}</small></div>`).join('');
+}
+function setFilter(s) { filter = s; renderStats(); renderList(); }
+
+function renderList() {
+  const q = $('search').value.trim().toLowerCase();
+  const rows = tickets.filter(t => (!filter || t.status === filter) &&
+    (!q || t.title.toLowerCase().includes(q) || t.ticketNo.toLowerCase().includes(q)));
+  $('count').textContent = `(${rows.length})`;
+  $('list').innerHTML = rows.map(t => `
+    <div class="ticket ${t.id === currentId ? 'sel' : ''}" style="${cvar(t.status)}" onclick="showTicket(${t.id})">
+      <div class="top"><span class="no">${t.ticketNo}</span>${badge(t.status)}</div>
+      <div class="title">${esc(t.title)}</div>
+      <div class="meta"><span>📁 ${t.category?.name ?? ''}</span>
+        <span class="prio-${t.priority}">● ${PRIO[t.priority] ?? t.priority}</span>
+        <span>👤 ${t.assignee?.name ?? 'ยังไม่มีผู้รับ'}</span></div>
+    </div>`).join('') || `<div class="empty"><div>📭</div>ไม่มีใบแจ้ง</div>`;
+}
+
+async function createTicket() {
+  const title = $('title').value.trim();
+  if (!title) return toast('กรุณากรอกหัวข้อปัญหา', true);
+  $('createBtn').disabled = true;
+  try {
+    const t = await api('/tickets', 'POST', {title, description:$('desc').value,
+      categoryId:+$('category').value, priority:document.querySelector('input[name=prio]:checked').value, userId:me()});
+    $('title').value = $('desc').value = '';
+    toast(`ส่งใบแจ้ง ${t.ticketNo} เรียบร้อย`);
+    filter = ''; await loadTickets(); showTicket(t.id);
+  } catch (e) { toast(e.message, true); }
+  $('createBtn').disabled = false;
+}
+
+function stepper(status) {
+  if (status === 'Cancelled') return `<div class="cancelled-note">✕ ใบแจ้งนี้ถูกยกเลิกแล้ว</div>`;
+  const idx = FLOW.indexOf(status);
+  return `<div class="stepper">${FLOW.map((s, i) => `
+    <div class="step ${i <= idx ? 'done' : ''} ${i === idx ? 'now' : ''}"><i>${i < idx || status === 'Closed' ? '✓' : i + 1}</i>${STATUS[s].th}</div>`).join('')}</div>`;
+}
+
+async function showTicket(id) {
+  currentId = id; renderList();
+  const {ticket:t, allowedNext, canAssign:isAdmin, history} = await api(`/tickets/${id}`);
+  const reporter = t.reporter;
+  const techs = users.filter(u => u.role !== 'Staff');
+  const canAssign = isAdmin && !['Closed','Cancelled'].includes(t.status);
+  const actor = meUser;
+
+  $('detailPane').innerHTML = `
+    <button class="btn ghost back" onclick="closeDetail()">← กลับ</button>
+    <div class="detail-head">
+      <div><span class="no" style="color:var(--muted);font-weight:600">${t.ticketNo}</span><h3>${esc(t.title)}</h3></div>
+      ${badge(t.status)}
+    </div>
+    ${t.description ? `<div class="desc">${esc(t.description)}</div>` : '<div style="height:14px"></div>'}
+    <div class="info">
+      <div><small>ประเภท</small><b>${t.category?.name ?? '-'}</b></div>
+      <div><small>ความสำคัญ</small><b class="prio-${t.priority}">${PRIO[t.priority] ?? t.priority}</b></div>
+      <div><small>ผู้แจ้ง</small><b>${reporter?.name ?? '-'}</b></div>
+      <div><small>ผู้รับงาน</small><b>${t.assignee?.name ?? '-'}</b></div>
+    </div>
+    ${stepper(t.status)}
+
+    <div class="actions">
+      ${canAssign ? `<h4>👷 มอบหมายผู้รับงาน</h4>
+        <div class="inline"><select id="assignee">${techs.map(u => `<option value="${u.id}" ${u.id === t.assigneeId ? 'selected' : ''}>${u.name}</option>`).join('')}</select>
+        <button class="btn" onclick="assign(${t.id})">มอบหมาย</button></div>` : ''}
+      ${allowedNext.length ? `<h4 style="margin-top:${canAssign ? 14 : 0}px">🔄 เปลี่ยนสถานะ</h4>
+        <input id="note" placeholder="หมายเหตุ (ถ้ามี)">
+        <div>${allowedNext.map(s => `<button class="btn status" style="${cvar(s)}" onclick="changeStatus(${t.id},'${s}')">${STATUS[s].th}</button>`).join('')}</div>`
+      : !canAssign ? `<div class="noperm">${['Closed','Cancelled'].includes(t.status) ? 'ใบแจ้งนี้สิ้นสุดแล้ว' :
+          `${actor?.name} ไม่มีสิทธิ์ดำเนินการกับใบแจ้งนี้ในขั้นตอนปัจจุบัน`}</div>` : ''}
+    </div>
+
+    <div class="actions">
+      <h4>🕒 ประวัติสถานะ</h4>
+      <ul class="timeline">${history.map(h => `
+        <li style="${cvar(h.toStatus)}">
+          <div>${h.fromStatus ? badge(h.fromStatus) + ' → ' : ''}${badge(h.toStatus)}</div>
+          <div class="when">${fmt(h.changedAt)} · โดย <b style="color:var(--text)">${h.changedBy?.name ?? '-'}</b></div>
+          ${h.note ? `<div class="note">${esc(h.note)}</div>` : ''}
+        </li>`).join('')}</ul>
+    </div>`;
+  $('detailPane').classList.add('open');
+}
+
+function closeDetail() { $('detailPane').classList.remove('open'); }
+
+async function assign(id) {
+  try { await api(`/tickets/${id}/assign`, 'PATCH', {assigneeId:+$('assignee').value, userId:me()});
+        toast('มอบหมายงานเรียบร้อย'); refresh(id); }
+  catch (e) { toast(e.message, true); }
+}
+async function changeStatus(id, toStatus) {
+  try { await api(`/tickets/${id}/status`, 'PATCH', {toStatus, userId:me(), note:$('note')?.value});
+        toast(`เปลี่ยนสถานะเป็น "${STATUS[toStatus].th}" แล้ว`); refresh(id); }
+  catch (e) { toast(e.message, true); }
+}
+async function refresh(id) { await loadTickets(); showTicket(id); }
+
+init().catch(e => toast('เชื่อมต่อเซิร์ฟเวอร์ไม่ได้: ' + e.message, true));
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
