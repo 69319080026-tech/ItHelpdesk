@@ -10,7 +10,20 @@ var builder = WebApplication.CreateBuilder(args);
 var dbDir = Environment.GetEnvironmentVariable("WEBSITE_SITE_NAME") is null
     ? "." : Path.Combine(Environment.GetEnvironmentVariable("HOME")!, "data");
 Directory.CreateDirectory(dbDir);
-builder.Services.AddDbContext<AppDb>(o => o.UseSqlite($"Data Source={Path.Combine(dbDir, "helpdesk.db")}"));
+
+// ถ้ามี DATABASE_URL (เช่น Postgres บน Vercel/Neon) ใช้ PostgreSQL — ไม่งั้นใช้ไฟล์ SQLite ในเครื่อง
+var pgUrl = Environment.GetEnvironmentVariable("DATABASE_URL") ?? Environment.GetEnvironmentVariable("POSTGRES_URL");
+if (!string.IsNullOrWhiteSpace(pgUrl))
+{
+    AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);   // เก็บ DateTime.Now ได้ตรงๆ
+    builder.Services.AddDbContext<AppDb>(o => o.UseNpgsql(PgConn.FromUrl(pgUrl)));
+}
+else
+    builder.Services.AddDbContext<AppDb>(o => o.UseSqlite($"Data Source={Path.Combine(dbDir, "helpdesk.db")}"));
+
+// Vercel / Render ส่งพอร์ตมาทาง PORT
+var port = Environment.GetEnvironmentVariable("PORT");
+if (!string.IsNullOrWhiteSpace(port)) builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
 builder.Services.AddScoped<TicketService>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
@@ -194,8 +207,11 @@ public static class Seed
     public static void Run(AppDb db)
     {
         db.Database.EnsureCreated();
-        try { _ = db.Users.Select(u => u.Username).FirstOrDefault(); }
-        catch { db.Database.EnsureDeleted(); db.Database.EnsureCreated(); }   // DB รุ่นเก่ายังไม่มีคอลัมน์ล็อกอิน → สร้างใหม่
+        if (db.Database.IsSqlite())
+        {
+            try { _ = db.Users.Select(u => u.Username).FirstOrDefault(); }
+            catch { db.Database.EnsureDeleted(); db.Database.EnsureCreated(); }   // ไฟล์ DB รุ่นเก่ายังไม่มีคอลัมน์ล็อกอิน → สร้างใหม่
+        }
 
         if (db.Users.Any()) return;
         foreach (var a in Accounts)   // เพิ่มทีละคนเพื่อให้ Id เรียงตามลำดับ (1=somchai, 2=wichai, 3=admin)
@@ -207,6 +223,20 @@ public static class Seed
             new Category { Name = "Hardware" }, new Category { Name = "Software" },
             new Category { Name = "Network" }, new Category { Name = "Account/Password" });
         db.SaveChanges();
+    }
+}
+
+// แปลง postgres://user:pass@host:port/db?sslmode=require เป็น connection string ของ Npgsql
+public static class PgConn
+{
+    public static string FromUrl(string url)
+    {
+        if (!url.StartsWith("postgres")) return url;   // เป็น connection string อยู่แล้ว
+        var u = new Uri(url);
+        var userInfo = u.UserInfo.Split(':', 2);
+        return $"Host={u.Host};Port={(u.Port > 0 ? u.Port : 5432)};Database={u.AbsolutePath.Trim('/')};" +
+               $"Username={Uri.UnescapeDataString(userInfo[0])};Password={Uri.UnescapeDataString(userInfo.ElementAtOrDefault(1) ?? "")};" +
+               "SSL Mode=Require;Trust Server Certificate=true;Maximum Pool Size=5";
     }
 }
 
